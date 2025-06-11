@@ -138,26 +138,53 @@ def read_existing_summary(vault_path, section_name):
     return tasks
 
 
-def write_all_sections_to_md(vault_path, api_key, days=2, vault_name="kenny's mind"):
+def append_new_tasks_to_md(vault_path, section_name, new_items, vault_name):
+    """
+    Append only new tasks to the summary markdown file for a section.
+    """
+    sirimal_folder = os.path.join(vault_path, SUMMARY_SAVE_PATH)
+    os.makedirs(sirimal_folder, exist_ok=True)
+    filename = f"{section_name.replace(' ', '_')}.md"
+    file_path = os.path.join(sirimal_folder, filename)
+    existing_tasks = read_existing_summary(vault_path, section_name)
+    with open(file_path, "a", encoding="utf-8") as f:
+        for item in new_items:
+            text, note_path = item
+            if text not in existing_tasks:
+                encoded_path = urllib.parse.quote(note_path)
+                obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
+                f.write(f"- {text} [🔗]({obsidian_url})\n")
+    return file_path
+
+
+def read_all_tasks_from_summary(vault_path, section_name):
+    """
+    Read all tasks (with links) from the summary markdown file for a section.
+    Returns a list of markdown strings.
+    """
+    sirimal_folder = os.path.join(vault_path, SUMMARY_SAVE_PATH)
+    filename = f"{section_name.replace(' ', '_')}.md"
+    file_path = os.path.join(sirimal_folder, filename)
+    tasks = []
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("- "):
+                    tasks.append(line)
+    return tasks
+
+
+def process_and_append_tasks(vault_path, api_key, days=2, vault_name="kenny's mind"):
     results = extract_from_recent_notes(vault_path, api_key, days)
-    paths = {}
+    new_counts = {}
     for section in ["To-Do Tasks", "Important things to follow up", "Papers to read"]:
         items = results[section]
-        # Read existing tasks
         existing_tasks = read_existing_summary(vault_path, section)
-        # Only add new tasks (ignore duplicates)
-        unique_items = []
-        for item in items:
-            text = item[0] if isinstance(item, tuple) else item
-            if text not in existing_tasks:
-                unique_items.append(item)
-        # Combine old and new
-        all_items = list(existing_tasks) + [item[0] if isinstance(item, tuple) else item for item in unique_items]
-        # Write with note links for new items, plain for old
-        # For simplicity, you can keep note links only for new items, or you can store note_path for old items as well if you want
-        file_path = write_section_to_md(vault_path, section, items, vault_name)
-        paths[section] = file_path
-    return paths
+        new_items = [item for item in items if item[0] not in existing_tasks]
+        append_new_tasks_to_md(vault_path, section, new_items, vault_name)
+        new_counts[section] = len(new_items)
+    return new_counts
 
 
 if __name__ == "__main__":

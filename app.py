@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from pathlib import Path
-from obsidian_agent import list_recent_documents, extract_from_recent_notes, write_all_sections_to_md
+from obsidian_agent import list_recent_documents, extract_from_recent_notes, process_and_append_tasks, read_all_tasks_from_summary
 from dotenv import load_dotenv
 import urllib.parse
 load_dotenv()
@@ -135,44 +135,32 @@ if st.session_state.get('show_recent_docs', False):
                 note_links.append(f"[{note_path}]({obsidian_url})")
             st.markdown(" &nbsp;|&nbsp; ".join(note_links), unsafe_allow_html=True)
             
-            # --- New: OpenAI Extraction ---
             if api_key and st.button(f"Put {AGENT_NAME} to Work"):
                 with st.spinner(f"{AGENT_NAME} is working on it with OpenAI..."):
-                    results = extract_from_recent_notes(st.session_state.selected_vault_path, api_key, DAYS_TO_LOOK_BACK)
-                    paths = write_all_sections_to_md(st.session_state.selected_vault_path, api_key, vault_name=vault_name)
-                st.success(f"{AGENT_NAME} has completed the work and has written summary .md files to 10 - Sirimal folder in your vault!")
+                    new_counts = process_and_append_tasks(st.session_state.selected_vault_path, api_key, DAYS_TO_LOOK_BACK, vault_name=vault_name)
+                st.success(f"New to-do tasks: {new_counts['To-Do Tasks']} | New important things to follow up: {new_counts['Important things to follow up']} | New papers to read: {new_counts['Papers to read']}")
 
-                def is_real_item(item):
-                    return item[0].strip() and not item[0].strip().lower().startswith("no items found")
+                # Read and display all tasks from the updated summary files
+                todos = read_all_tasks_from_summary(st.session_state.selected_vault_path, "To-Do Tasks")
+                followups = read_all_tasks_from_summary(st.session_state.selected_vault_path, "Important things to follow up")
+                papers = read_all_tasks_from_summary(st.session_state.selected_vault_path, "Papers to read")
 
-                # Prepare filtered lists (now each item is a tuple: (text, note_path))
-                todos = [item for item in results["To-Do Tasks"] if is_real_item(item)]
-                followups = [item for item in results["Important things to follow up"] if is_real_item(item)]
-                papers = [item for item in results["Papers to read"] if is_real_item(item)]
-
-                # Show in three columns
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     if todos:
                         st.markdown("### 📝 To-Do Tasks")
-                        for text, note_path in todos:
-                            encoded_path = urllib.parse.quote(note_path)
-                            obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
-                            st.markdown(f"- {text} [🔗]({obsidian_url})", unsafe_allow_html=True)
+                        for line in todos:
+                            st.markdown(line, unsafe_allow_html=True)
                 with col2:
                     if followups:
                         st.markdown("### 🔎 Important things to follow up")
-                        for text, note_path in followups:
-                            encoded_path = urllib.parse.quote(note_path)
-                            obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
-                            st.markdown(f"- {text} [🔗]({obsidian_url})", unsafe_allow_html=True)
+                        for line in followups:
+                            st.markdown(line, unsafe_allow_html=True)
                 with col3:
                     if papers:
                         st.markdown("### 📚 Papers to read")
-                        for text, note_path in papers:
-                            encoded_path = urllib.parse.quote(note_path)
-                            obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
-                            st.markdown(f"- {text} [🔗]({obsidian_url})", unsafe_allow_html=True)
+                        for line in papers:
+                            st.markdown(line, unsafe_allow_html=True)
             elif not api_key:
                 st.error("OpenAI API key not found in environment variables.")
         else:
