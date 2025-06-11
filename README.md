@@ -67,11 +67,11 @@ You can create a one-click desktop app to launch Sirimal using Automator on macO
 1. **Open Automator** (find it in Applications or via Spotlight).
 2. Select **New Document** and choose **Application**.
 3. In the search bar, type **"shell"** and drag **Run Shell Script** to the workflow area.
-4. Paste the following script (edit the path if your project is elsewhere):
+4. Paste the following script, replacing the paths with your own project and virtual environment locations:
     ```bash
-    cd "/Users/kanishkarandunu/Documents/2. Personal Projects/Obisidian_Agent"
-    source "/Users/kanishkarandunu/Documents/2. Personal Projects/Obisidian_Agent/.venv/bin/activate"
-    "/Users/kanishkarandunu/Documents/2. Personal Projects/Obisidian_Agent/.venv/bin/streamlit" run app.py
+    cd "/path/to/your/Obsidian_Agent"
+    source "/path/to/your/Obsidian_Agent/.venv/bin/activate"
+    "/path/to/your/Obsidian_Agent/.venv/bin/streamlit" run app.py
     ```
 5. Go to **File > Save**, name it (e.g., `Launch Sirimal`), and save it to your Desktop.
 6. Double-click your new app to launch Sirimal in your browser!
