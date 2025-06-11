@@ -5,8 +5,13 @@ from obsidian_agent import list_recent_documents, extract_from_recent_notes, pro
 from dotenv import load_dotenv
 import urllib.parse
 load_dotenv()
-import os
-from config import DEFAULT_VAULT_PATH, DEFAULT_VAULT_NAME, AGENT_NAME, DAYS_TO_LOOK_BACK
+from config import (
+    DEFAULT_VAULT_PATH,
+    DEFAULT_VAULT_NAME,
+    AGENT_NAME,
+    DAYS_TO_LOOK_BACK,
+    SUMMARY_SAVE_PATH,
+)
 
 api_key = os.getenv("OPENAI_API_KEY")
 
@@ -58,8 +63,10 @@ def get_valid_directories(path):
         return []
 
 # Function to read summary section from markdown file
+
+
 def read_summary_section(vault_path, section_name):
-    sirimal_folder = os.path.join(vault_path, "10 - Sirimal")  # Or use SUMMARY_SAVE_PATH from config
+    sirimal_folder = os.path.join(vault_path, SUMMARY_SAVE_PATH)
     filename = f"{section_name.replace(' ', '_')}.md"
     file_path = os.path.join(sirimal_folder, filename)
     lines = []

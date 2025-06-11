@@ -197,8 +197,6 @@ def process_and_update_summaries(vault_path, api_key, days=2, vault_name="kenny'
                 deduped[(norm_text, note_path)] = norm_text  # fallback to normalized text
         # Prepare list for writing
         final_list = [(text, note_path) for (norm_text, note_path), text in deduped.items()]
-        # Sort for consistency. `x[1]` may be None when a task has no link,
-        # so use an empty string as a fallback to avoid TypeError.
         final_list.sort(key=lambda x: (x[1] or "", x[0]))
         write_section_to_md(vault_path, section, final_list, vault_name)
         new_counts[section] = len(final_list)
