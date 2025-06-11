@@ -12,7 +12,7 @@ Sirimal is a Streamlit-based Obsidian agent designed to help manage and summariz
 - **Summary Files**: Writes summary markdown files in your vault, deduplicating tasks.
 
 ## Prerequisites
-- Python 3.6 or higher
+- Python 3.8 or higher
 - An OpenAI API key
 - Obsidian installed and configured
 
@@ -59,7 +59,7 @@ Edit the `config.py` file to customize the following settings:
 
 3. Use the file browser to select your Obsidian vault folder.
 
-4. Click on "Put Sirimal to Work" to extract tasks and save summary files to your obsidian vault.
+4. Click on "Put Sirimal to Work" to extract tasks and save summary files to your Obsidian vault.
 
 ## Creating a Desktop Shortcut (macOS Automator Application)
 You can create a one-click desktop app to launch Sirimal using Automator on macOS:

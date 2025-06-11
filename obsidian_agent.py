@@ -118,10 +118,15 @@ def write_section_to_md(vault_path, section_name, items, vault_name):
     file_path = os.path.join(sirimal_folder, filename)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(f"# {section_name}\n\n")
-        for text, note_path in items:
+        for item in items:
+            text, note_path = item
+            # Some tasks might not have an originating note (note_path is None).
+            # When no note is available, simply write the text without an Obsidian link.
             if note_path:
                 encoded_path = urllib.parse.quote(note_path)
-                obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
+                obsidian_url = (
+                    f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
+                )
                 f.write(f"- {text} [🔗]({obsidian_url})\n")
             else:
                 f.write(f"- {text}\n")
@@ -143,7 +148,9 @@ def read_existing_summary(vault_path, section_name):
                 if line.startswith("- "):
                     # Remove the link if present
                     main_part = line[2:]
-                    # Try to extract note_path from the obsidian link
+                    # Try to extract note_path from the obsidian link. If no
+                    # link is present, note_path will remain None and we'll
+                    # store the task without a source note.
                     note_path = None
                     text = main_part
                     if "[🔗](obsidian://open?vault=" in main_part:
@@ -190,8 +197,7 @@ def process_and_update_summaries(vault_path, api_key, days=2, vault_name="kenny'
                 deduped[(norm_text, note_path)] = norm_text  # fallback to normalized text
         # Prepare list for writing
         final_list = [(text, note_path) for (norm_text, note_path), text in deduped.items()]
-        # Sort for consistency
-        final_list.sort(key=lambda x: ((x[1] or ""), x[0]))
+        final_list.sort(key=lambda x: (x[1] or "", x[0]))
         write_section_to_md(vault_path, section, final_list, vault_name)
         new_counts[section] = len(final_list)
     return new_counts
