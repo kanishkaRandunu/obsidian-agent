@@ -118,11 +118,13 @@ def write_section_to_md(vault_path, section_name, items, vault_name):
     file_path = os.path.join(sirimal_folder, filename)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(f"# {section_name}\n\n")
-        for item in items:
-            text, note_path = item
-            encoded_path = urllib.parse.quote(note_path)
-            obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
-            f.write(f"- {text} [🔗]({obsidian_url})\n")
+        for text, note_path in items:
+            if note_path:
+                encoded_path = urllib.parse.quote(note_path)
+                obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
+                f.write(f"- {text} [🔗]({obsidian_url})\n")
+            else:
+                f.write(f"- {text}\n")
     return file_path
 
 
@@ -189,7 +191,7 @@ def process_and_update_summaries(vault_path, api_key, days=2, vault_name="kenny'
         # Prepare list for writing
         final_list = [(text, note_path) for (norm_text, note_path), text in deduped.items()]
         # Sort for consistency
-        final_list.sort(key=lambda x: (x[1], x[0]))
+        final_list.sort(key=lambda x: ((x[1] or ""), x[0]))
         write_section_to_md(vault_path, section, final_list, vault_name)
         new_counts[section] = len(final_list)
     return new_counts
