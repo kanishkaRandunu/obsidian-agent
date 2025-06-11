@@ -59,7 +59,7 @@ Edit the `config.py` file to customize the following settings:
 
 3. Use the file browser to select your Obsidian vault folder.
 
-4. Click on "Put Sirimal to Work" to extract tasks and save summary files to your obsidian vault.
+4. Click on "Put Sirimal to Work" to extract tasks and save summary files to your Obsidian vault.
 
 ## Creating a Desktop Shortcut (macOS Automator Application)
 You can create a one-click desktop app to launch Sirimal using Automator on macOS:
