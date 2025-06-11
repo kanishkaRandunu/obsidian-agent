@@ -12,7 +12,7 @@ Sirimal is a Streamlit-based Obsidian agent designed to help manage and summariz
 - **Summary Files**: Writes summary markdown files in your vault, deduplicating tasks.
 
 ## Prerequisites
-- Python 3.6 or higher
+- Python 3.8 or higher
 - An OpenAI API key
 - Obsidian installed and configured
 
