@@ -10,7 +10,7 @@ __pycache__/
 .env
 
 # Python virtual environments
-.vnv/
+.venv/
 venv/
 ENV/
 .env/ 

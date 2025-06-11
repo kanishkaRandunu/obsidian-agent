@@ -69,6 +69,13 @@ def extract_section(markdown, section_title):
     return []
 
 
+def is_valid_paper_task(text):
+    # Only accept if there's a link to a paper (arxiv, doi, or http(s) link)
+    if "arxiv.org" in text or "doi.org" in text or "http://" in text or "https://" in text:
+        return True
+    return False
+
+
 def extract_from_recent_notes(vault_path, api_key, days=2):
     """
     For each recent note, extract to-do tasks and special points using OpenAI.
@@ -87,7 +94,11 @@ def extract_from_recent_notes(vault_path, api_key, days=2):
             # Attach note path to each item
             all_todos.extend([(item, rel_path) for item in extract_section(markdown, "To-Do Tasks")])
             all_followups.extend([(item, rel_path) for item in extract_section(markdown, "Important things to follow up")])
-            all_papers.extend([(item, rel_path) for item in extract_section(markdown, "Papers to read")])
+            all_papers.extend([
+                (item, rel_path)
+                for item in extract_section(markdown, "Papers to read")
+                if is_valid_paper_task(item) and "1H Read a Paper" not in item
+            ])
         except Exception as e:
             pass
     return {
@@ -99,7 +110,7 @@ def extract_from_recent_notes(vault_path, api_key, days=2):
 
 def write_section_to_md(vault_path, section_name, items, vault_name):
     """
-    Write a markdown file for a section in the specified folder, including note links.
+    Overwrite the markdown file for a section in the specified folder, including note links, with the full deduplicated list.
     """
     sirimal_folder = os.path.join(vault_path, SUMMARY_SAVE_PATH)
     os.makedirs(sirimal_folder, exist_ok=True)
@@ -108,20 +119,16 @@ def write_section_to_md(vault_path, section_name, items, vault_name):
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(f"# {section_name}\n\n")
         for item in items:
-            # item is (text, note_path)
-            if isinstance(item, tuple):
-                text, note_path = item
-                encoded_path = urllib.parse.quote(note_path)
-                obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
-                f.write(f"- {text} [🔗]({obsidian_url})\n")
-            else:
-                f.write(f"- {item}\n")
+            text, note_path = item
+            encoded_path = urllib.parse.quote(note_path)
+            obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
+            f.write(f"- {text} [🔗]({obsidian_url})\n")
     return file_path
 
 
 def read_existing_summary(vault_path, section_name):
     """
-    Read the existing summary .md file for a section and return a set of tasks.
+    Read the existing summary .md file for a section and return a set of (task_text, note_path) tuples.
     """
     sirimal_folder = os.path.join(vault_path, SUMMARY_SAVE_PATH)
     filename = f"{section_name.replace(' ', '_')}.md"
@@ -133,57 +140,58 @@ def read_existing_summary(vault_path, section_name):
                 line = line.strip()
                 if line.startswith("- "):
                     # Remove the link if present
-                    task_text = line[2:].split(" [🔗]", 1)[0].strip()
-                    tasks.add(task_text)
+                    main_part = line[2:]
+                    # Try to extract note_path from the obsidian link
+                    note_path = None
+                    text = main_part
+                    if "[🔗](obsidian://open?vault=" in main_part:
+                        # Extract the note_path from the URL
+                        try:
+                            link_start = main_part.index("[🔗](obsidian://open?vault=")
+                            url = main_part[link_start+5:].split(')',1)[0]
+                            # Find &file= param
+                            file_param = url.split('&file=')[-1]
+                            note_path = urllib.parse.unquote(file_param)
+                            text = main_part[:link_start].strip()
+                        except Exception:
+                            note_path = None
+                    # Normalize text for deduplication
+                    norm_text = text.strip().lower()
+                    if note_path:
+                        tasks.add((norm_text, note_path))
+                    else:
+                        tasks.add((norm_text, None))
     return tasks
 
 
-def append_new_tasks_to_md(vault_path, section_name, new_items, vault_name):
-    """
-    Append only new tasks to the summary markdown file for a section.
-    """
-    sirimal_folder = os.path.join(vault_path, SUMMARY_SAVE_PATH)
-    os.makedirs(sirimal_folder, exist_ok=True)
-    filename = f"{section_name.replace(' ', '_')}.md"
-    file_path = os.path.join(sirimal_folder, filename)
-    existing_tasks = read_existing_summary(vault_path, section_name)
-    with open(file_path, "a", encoding="utf-8") as f:
-        for item in new_items:
-            text, note_path = item
-            if text not in existing_tasks:
-                encoded_path = urllib.parse.quote(note_path)
-                obsidian_url = f"obsidian://open?vault={urllib.parse.quote(vault_name)}&file={encoded_path}"
-                f.write(f"- {text} [🔗]({obsidian_url})\n")
-    return file_path
-
-
-def read_all_tasks_from_summary(vault_path, section_name):
-    """
-    Read all tasks (with links) from the summary markdown file for a section.
-    Returns a list of markdown strings.
-    """
-    sirimal_folder = os.path.join(vault_path, SUMMARY_SAVE_PATH)
-    filename = f"{section_name.replace(' ', '_')}.md"
-    file_path = os.path.join(sirimal_folder, filename)
-    tasks = []
-    if os.path.exists(file_path):
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("- "):
-                    tasks.append(line)
-    return tasks
-
-
-def process_and_append_tasks(vault_path, api_key, days=2, vault_name="kenny's mind"):
+def process_and_update_summaries(vault_path, api_key, days=2, vault_name="kenny's mind"):
     results = extract_from_recent_notes(vault_path, api_key, days)
     new_counts = {}
     for section in ["To-Do Tasks", "Important things to follow up", "Papers to read"]:
-        items = results[section]
+        # Read all existing tasks
         existing_tasks = read_existing_summary(vault_path, section)
-        new_items = [item for item in items if item[0] not in existing_tasks]
-        append_new_tasks_to_md(vault_path, section, new_items, vault_name)
-        new_counts[section] = len(new_items)
+        # Add new tasks from LLM extraction
+        new_items = results[section]
+        # Combine and deduplicate by (normalized text, note_path)
+        combined = set(existing_tasks)
+        for item in new_items:
+            norm_text = item[0].strip().lower()
+            combined.add((norm_text, item[1]))
+        # Convert back to (original text, note_path) for writing
+        # We'll use the latest version of the text from new_items if available
+        deduped = {}
+        for item in new_items:
+            norm_text = item[0].strip().lower()
+            deduped[(norm_text, item[1])] = item[0]  # keep original text
+        for norm_text, note_path in combined:
+            if (norm_text, note_path) not in deduped:
+                deduped[(norm_text, note_path)] = norm_text  # fallback to normalized text
+        # Prepare list for writing
+        final_list = [(text, note_path) for (norm_text, note_path), text in deduped.items()]
+        # Sort for consistency
+        final_list.sort(key=lambda x: (x[1], x[0]))
+        write_section_to_md(vault_path, section, final_list, vault_name)
+        new_counts[section] = len(final_list)
     return new_counts
 
 

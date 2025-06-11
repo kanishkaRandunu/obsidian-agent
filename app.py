@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from pathlib import Path
-from obsidian_agent import list_recent_documents, extract_from_recent_notes, process_and_append_tasks, read_all_tasks_from_summary
+from obsidian_agent import list_recent_documents, extract_from_recent_notes, process_and_update_summaries
 from dotenv import load_dotenv
 import urllib.parse
 load_dotenv()
@@ -56,6 +56,20 @@ def get_valid_directories(path):
     except Exception as e:
         st.error(f"Error reading directory: {str(e)}")
         return []
+
+# Function to read summary section from markdown file
+def read_summary_section(vault_path, section_name):
+    sirimal_folder = os.path.join(vault_path, "10 - Sirimal")  # Or use SUMMARY_SAVE_PATH from config
+    filename = f"{section_name.replace(' ', '_')}.md"
+    file_path = os.path.join(sirimal_folder, filename)
+    lines = []
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("- "):
+                    lines.append(line)
+    return lines
 
 # Create three columns for path, directory selection, and buttons
 path_col, dir_col, btn_col = st.columns([2, 2, 2])
@@ -137,13 +151,13 @@ if st.session_state.get('show_recent_docs', False):
             
             if api_key and st.button(f"Put {AGENT_NAME} to Work"):
                 with st.spinner(f"{AGENT_NAME} is working on it with OpenAI..."):
-                    new_counts = process_and_append_tasks(st.session_state.selected_vault_path, api_key, DAYS_TO_LOOK_BACK, vault_name=vault_name)
-                st.success(f"New to-do tasks: {new_counts['To-Do Tasks']} | New important things to follow up: {new_counts['Important things to follow up']} | New papers to read: {new_counts['Papers to read']}")
+                    new_counts = process_and_update_summaries(st.session_state.selected_vault_path, api_key, DAYS_TO_LOOK_BACK, vault_name=vault_name)
+                st.success(f"to-do tasks: {new_counts['To-Do Tasks']} | important things to follow up: {new_counts['Important things to follow up']} | papers to read: {new_counts['Papers to read']}")
 
                 # Read and display all tasks from the updated summary files
-                todos = read_all_tasks_from_summary(st.session_state.selected_vault_path, "To-Do Tasks")
-                followups = read_all_tasks_from_summary(st.session_state.selected_vault_path, "Important things to follow up")
-                papers = read_all_tasks_from_summary(st.session_state.selected_vault_path, "Papers to read")
+                todos = read_summary_section(st.session_state.selected_vault_path, "To-Do Tasks")
+                followups = read_summary_section(st.session_state.selected_vault_path, "Important things to follow up")
+                papers = read_summary_section(st.session_state.selected_vault_path, "Papers to read")
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -167,8 +181,6 @@ if st.session_state.get('show_recent_docs', False):
             st.info("No documents created or updated in the last 2 days.")
     except Exception as e:
         st.error(f"Error reading documents: {e}")
-
-
 
 # # Add a divider
 # st.divider()
